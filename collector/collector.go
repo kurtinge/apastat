@@ -1,5 +1,9 @@
 package collector
 
+type Collector interface {
+	GetStats() (*ServerStatus, error)
+}
+
 type ServerStatus struct {
 	Uptime      string
 	RequestSec  int

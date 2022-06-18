@@ -15,9 +15,12 @@ type ApacheCollector struct {
 	Uri  string
 }
 
-func NewApacheCollector() *ApacheCollector {
+func NewApacheCollector(host *string) Collector {
+	if host == nil {
+		*host = "localhost"
+	}
 	return &ApacheCollector{
-		Host: "localhost",
+		Host: *host,
 		Uri:  "/server-status",
 	}
 }
@@ -29,10 +32,10 @@ func (c *ApacheCollector) GetStats() (*ServerStatus, error) {
 	}
 	defer resp.Body.Close()
 
-	return parseApacheServerStatus(resp.Body)
+	return c.parseApacheServerStatus(resp.Body)
 }
 
-func parseApacheServerStatus(htmlBody io.Reader) (*ServerStatus, error) {
+func (c *ApacheCollector) parseApacheServerStatus(htmlBody io.Reader) (*ServerStatus, error) {
 	tkn := html.NewTokenizer(htmlBody)
 
 	serverStatus := &ServerStatus{}
@@ -119,7 +122,6 @@ func parseApacheServerStatus(htmlBody io.Reader) (*ServerStatus, error) {
 				case "Request":
 					serverSlot.Request = t.Data
 				}
-
 			}
 
 			if isDt {
