@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -35,6 +36,16 @@ func (c *ApacheCollector) GetStats() (*ServerStatus, error) {
 	return c.parseApacheServerStatus(resp.Body)
 }
 
+func (c *ApacheCollector) GetStatsFromFile() (*ServerStatus, error) {
+	file, err := os.Open("serverstatus.html")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	return c.parseApacheServerStatus(file)
+}
+
 func (c *ApacheCollector) parseApacheServerStatus(htmlBody io.Reader) (*ServerStatus, error) {
 	tkn := html.NewTokenizer(htmlBody)
 
@@ -46,6 +57,7 @@ func (c *ApacheCollector) parseApacheServerStatus(htmlBody io.Reader) (*ServerSt
 
 	var columns []string
 	var currentColumn int
+	foundServerStatus := false
 
 	var serverSlot Slot
 
@@ -73,32 +85,41 @@ func (c *ApacheCollector) parseApacheServerStatus(htmlBody io.Reader) (*ServerSt
 				currentColumn = 0
 			}
 
+			if t.Data == "table" {
+				if t.Attr[0].Key == "border" {
+					foundServerStatus = true
+				}
+			}
+
 		case tt == html.EndTagToken:
 			t := tkn.Token()
-			if t.Data == "tr" {
+			if foundServerStatus && t.Data == "tr" {
 
 				if serverSlot.Mode != "" {
 					serverStatus.ServerSlots = append(serverStatus.ServerSlots, serverSlot)
 				}
 			}
 
-			if t.Data == "td" {
+			if foundServerStatus && t.Data == "td" {
 				currentColumn++
 			}
 
-			if t.Data == "table" {
+			if foundServerStatus && t.Data == "table" {
 				return serverStatus, nil
 			}
+			isTd = false
+			isTh = false
+			isDt = false
 
 		case tt == html.TextToken:
 
 			t := tkn.Token()
 
-			if isTh {
+			if foundServerStatus && isTh {
 				columns = append(columns, strings.TrimSpace(t.Data))
 			}
 
-			if isTd {
+			if foundServerStatus && isTd {
 				switch columns[currentColumn] {
 				case "Srv":
 					serverSlot.ServerSlot = strings.TrimSpace(serverSlot.ServerSlot + t.Data)

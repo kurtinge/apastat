@@ -50,6 +50,7 @@ func main() {
 	serverStatus, err := apache.GetStats()
 	if err != nil {
 		fmt.Printf("Unable to fetch serverstatus. Error: %s", err)
+
 		return
 	}
 
